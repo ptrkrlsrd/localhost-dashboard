@@ -1,5 +1,15 @@
-use std::process::Command;
+#[macro_use] extern crate rocket;
 
+use std::process::Command;
+use std::collections::HashMap;
+use rocket::http::ContentType;
+use rocket::response::content;
+use rocket::response::content::Html;
+use handlebars::Handlebars;
+use serde::{Serialize, Deserialize};
+
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 struct Process {
     name: String,
     port: String,
@@ -34,10 +44,11 @@ fn filter_command_output(command_str: String) -> Vec<Vec<String>> {
             .map(|a| line_to_words(a))
             .filter(|b| b.len() == STATUS_COLUMN_NR)
             .filter(|c| c.last().unwrap().contains(LISTEN_STATUS))
-        .into_iter().collect();
+        .collect();
 }
 
-fn main() {
+#[get("/")]
+fn index() -> Html<String> {
     let command_str = run_lsof_command();
     let lines = filter_command_output(command_str);
     let processes = lines.into_iter().map(|i| {
@@ -46,9 +57,25 @@ fn main() {
             port: i[8].to_string(),
         };
         process
-    });
+    }).collect::<Vec<Process>>();
 
-    for process in processes {
-        println!("{} - {}", process.name, process.port);
-    }
+    let mut handlebars = Handlebars::new();
+    handlebars.set_strict_mode(true);
+
+    let mut data = HashMap::new();
+    data.insert("processes", processes);
+
+
+    handlebars.register_template_string("dashboard", include_str!("templates/index.hbs")).unwrap();
+
+    let rendered_html = handlebars.render("dashboard", &data).unwrap();
+    content::Html(rendered_html)
+}
+
+#[rocket::main]
+async fn main() {
+    rocket::build()
+        .mount("/", routes![index])
+        .launch()
+        .await;
 }
