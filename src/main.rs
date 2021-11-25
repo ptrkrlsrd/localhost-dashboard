@@ -2,7 +2,6 @@
 
 use std::process::Command;
 use std::collections::HashMap;
-use rocket::http::ContentType;
 use rocket::response::content;
 use rocket::response::content::Html;
 use handlebars::Handlebars;
@@ -65,7 +64,6 @@ fn index() -> Html<String> {
     let mut data = HashMap::new();
     data.insert("processes", processes);
 
-
     handlebars.register_template_string("dashboard", include_str!("templates/index.hbs")).unwrap();
 
     let rendered_html = handlebars.render("dashboard", &data).unwrap();
@@ -74,7 +72,7 @@ fn index() -> Html<String> {
 
 #[rocket::main]
 async fn main() {
-    rocket::build()
+    let _result = rocket::build()
         .mount("/", routes![index])
         .launch()
         .await;
