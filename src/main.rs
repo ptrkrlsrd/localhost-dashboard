@@ -12,7 +12,7 @@ fn line_to_words(line: &str) -> Vec<String> {
     line.split_whitespace().map(str::to_string).collect()
 }
 
-fn main() {
+fn run_lsof_command() -> String {
     let output = Command::new("lsof")
         .arg("-i")
         .arg("-P")
@@ -23,23 +23,33 @@ fn main() {
     let command_output = output.stdout;
     let command_str = match String::from_utf8(command_output) {
         Ok(result) => result,
-        Err(e) => panic!("{}", e),
+        Err(e) => panic!("Failed to encode utf8 string with error: {}", e),
     };
 
+    return command_str;
+}
 
-    let lines = command_str.lines()
-        .map(|x| line_to_words(x))
-        .filter(|i| i.len() == STATUS_COLUMN_NR)
-        .filter(|i| i.last().unwrap().contains(LISTEN_STATUS));
+fn filter_command_output(command_str: String) -> Vec<Vec<String>> {
+    return command_str.lines()
+        .enumerate()
+            .map(|a| line_to_words(a.1))
+            .filter(|b| b.len() == STATUS_COLUMN_NR)
+            .filter(|c| c.last().expect("could not get last column").contains(LISTEN_STATUS))
+        .into_iter().collect();
+}
 
-    for line in lines {
+fn main() {
+    let command_str = run_lsof_command();
+    let lines = filter_command_output(command_str);
+    let processes = lines.into_iter().map(|i| {
         let process = Process {
-            name: line[0].to_string(),
-            port: line[8].to_string(),
+            name: i[0].to_string(),
+            port: i[8].to_string(),
         };
+        process
+    });
 
+    for process in processes {
         println!("{} - {}", process.name, process.port);
     }
-
-    assert!(output.status.success());
 }
