@@ -31,10 +31,9 @@ fn run_lsof_command() -> String {
 
 fn filter_command_output(command_str: String) -> Vec<Vec<String>> {
     return command_str.lines()
-        .enumerate()
-            .map(|a| line_to_words(a.1))
+            .map(|a| line_to_words(a))
             .filter(|b| b.len() == STATUS_COLUMN_NR)
-            .filter(|c| c.last().expect("could not get last column").contains(LISTEN_STATUS))
+            .filter(|c| c.last().unwrap().contains(LISTEN_STATUS))
         .into_iter().collect();
 }
 
