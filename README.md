@@ -6,3 +6,5 @@
 * Rust
 * Rocket.rs
 * Handlebars
+
+Note: Requires lsof, but I'll work towards removing this dependency later
