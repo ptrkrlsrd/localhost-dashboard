@@ -1,11 +1,17 @@
 #[macro_use] extern crate rocket;
 
+use rocket::State;
 use std::process::Command;
 use std::collections::HashMap;
 use rocket::response::content;
 use rocket::response::content::Html;
 use handlebars::Handlebars;
 use serde::{Serialize, Deserialize};
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+struct ProcessState {
+    processes: Vec<Process>
+}
 
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -46,8 +52,7 @@ fn filter_command_output(command_str: String) -> Vec<Vec<String>> {
         .collect();
 }
 
-#[get("/")]
-fn index() -> Html<String> {
+fn get_processes() -> Vec<Process> {
     let command_str = run_lsof_command();
     let lines = filter_command_output(command_str);
     let processes = lines.into_iter().map(|i| {
@@ -58,13 +63,15 @@ fn index() -> Html<String> {
         process
     }).collect::<Vec<Process>>();
 
-    let mut handlebars = Handlebars::new();
-    handlebars.set_strict_mode(true);
+    return processes;
+}
+
+#[get("/")]
+fn index(handlebars: &State<Handlebars>) -> Html<String> {
+    let processes = get_processes();
 
     let mut data = HashMap::new();
     data.insert("processes", processes);
-
-    handlebars.register_template_string("dashboard", include_str!("templates/index.hbs")).unwrap();
 
     let rendered_html = handlebars.render("dashboard", &data).unwrap();
     content::Html(rendered_html)
@@ -72,8 +79,13 @@ fn index() -> Html<String> {
 
 #[rocket::main]
 async fn main() {
+    let mut handlebars = Handlebars::new();
+    handlebars.set_strict_mode(true);
+    handlebars.register_template_string("dashboard", include_str!("templates/index.hbs")).unwrap();
+
     let _result = rocket::build()
         .mount("/", routes![index])
+        .manage(handlebars)
         .launch()
         .await;
 }
