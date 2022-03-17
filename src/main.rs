@@ -70,10 +70,9 @@ fn get_processes() -> Vec<Process> {
 fn index(handlebars: &State<Handlebars>) -> Html<String> {
     let processes = get_processes();
 
-    let mut data = HashMap::new();
-    data.insert("processes", processes);
+    let process_map = HashMap::from([("processes", processes)]);
+    let rendered_html = handlebars.render("dashboard", &process_map).unwrap();
 
-    let rendered_html = handlebars.render("dashboard", &data).unwrap();
     content::Html(rendered_html)
 }
 
