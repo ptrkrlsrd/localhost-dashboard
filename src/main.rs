@@ -20,6 +20,18 @@ struct Process {
     addr: String,
 }
 
+impl Process {
+    fn new(name: &str, addr: &str) -> Result<Process, String> {
+        if name.is_empty() || addr.is_empty() {
+            return Err("Name or address cannot be empty".to_string());
+        }
+        Ok(Process {
+            name: name.to_string(),
+            addr: addr.to_string().replace("*", "127.0.0.1"),
+        })
+    }
+}
+
 const STATUS_COLUMN_NR: usize = 10;
 const LISTEN_STATUS: &str = "LISTEN";
 
@@ -58,13 +70,8 @@ fn get_processes() -> Vec<Process> {
     let lines = filter_command_output(command_str);
     let processes = lines
         .into_iter()
-        .map(|i| {
-            let process = Process {
-                name: i[0].to_string(),
-                addr: i[8].to_string().replace("*", "127.0.0.1"),
-            };
-            process
-        })
+        .map(|i| Process::new(&i[0], &i[8]))
+        .filter_map(Result::ok)
         .collect::<Vec<Process>>();
 
     return processes;
