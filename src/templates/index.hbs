@@ -17,14 +17,14 @@
         <thead>
             <tr>
                 <th>Name</th>
-                <th>Port</th>
+                <th>Address</th>
             </tr>
         </thead>
         <tbody>
             {{#each processes}}
             <tr>
-                <td><a href="http://{{this.port}}">{{this.name}}</a></td>
-                <td>{{this.port}}</td>
+                <td><a href="http://{{this.addr}}" target="_blank">{{this.name}}</a></td>
+                <td>{{this.addr}}</td>
             </tr>
             {{/each}}
         </tbody>

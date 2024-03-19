@@ -1,23 +1,23 @@
-#[macro_use] extern crate rocket;
+#[macro_use]
+extern crate rocket;
 
-use rocket::State;
-use std::process::Command;
-use std::collections::HashMap;
+use handlebars::Handlebars;
 use rocket::response::content;
 use rocket::response::content::Html;
-use handlebars::Handlebars;
-use serde::{Serialize, Deserialize};
+use rocket::State;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::process::Command;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct ProcessState {
-    processes: Vec<Process>
+    processes: Vec<Process>,
 }
-
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Process {
     name: String,
-    port: String,
+    addr: String,
 }
 
 const STATUS_COLUMN_NR: usize = 10;
@@ -45,23 +45,27 @@ fn run_lsof_command() -> String {
 }
 
 fn filter_command_output(command_str: String) -> Vec<Vec<String>> {
-    return command_str.lines()
-            .map(|a| line_to_words(a))
-            .filter(|b| b.len() == STATUS_COLUMN_NR)
-            .filter(|c| c.last().unwrap().contains(LISTEN_STATUS))
+    return command_str
+        .lines()
+        .map(|a| line_to_words(a))
+        .filter(|b| b.len() == STATUS_COLUMN_NR)
+        .filter(|c| c.last().unwrap().contains(LISTEN_STATUS))
         .collect();
 }
 
 fn get_processes() -> Vec<Process> {
     let command_str = run_lsof_command();
     let lines = filter_command_output(command_str);
-    let processes = lines.into_iter().map(|i| {
-        let process = Process {
-            name: i[0].to_string(),
-            port: i[8].to_string(),
-        };
-        process
-    }).collect::<Vec<Process>>();
+    let processes = lines
+        .into_iter()
+        .map(|i| {
+            let process = Process {
+                name: i[0].to_string(),
+                addr: i[8].to_string().replace("*", "127.0.0.1"),
+            };
+            process
+        })
+        .collect::<Vec<Process>>();
 
     return processes;
 }
@@ -80,7 +84,9 @@ fn index(handlebars: &State<Handlebars>) -> Html<String> {
 async fn main() {
     let mut handlebars = Handlebars::new();
     handlebars.set_strict_mode(true);
-    handlebars.register_template_string("dashboard", include_str!("templates/index.hbs")).unwrap();
+    handlebars
+        .register_template_string("dashboard", include_str!("templates/index.hbs"))
+        .unwrap();
 
     let _result = rocket::build()
         .mount("/", routes![index])
