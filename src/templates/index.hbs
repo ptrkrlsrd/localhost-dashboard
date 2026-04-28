@@ -13,26 +13,111 @@
 
 <body>
     <h1>Localhost Dashboard</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Address</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{#each processes}}
-            <tr>
-                <td><a href="http://{{this.addr}}" target="_blank">{{this.name}}</a></td>
-                <td>{{this.addr}}</td>
-            </tr>
-            {{/each}}
-        </tbody>
-    </table>
+
+    <section>
+        <h3>🚀 Local Development Apps</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name / Title</th>
+                    <th>Port</th>
+                    <th>Memory</th>
+                    <th>Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each local_apps}}
+                <tr>
+                    <td>
+                        <strong>{{this.name}}</strong>
+                        {{#if this.title}}
+                        <div class="page-title">{{this.title}}</div>
+                        {{/if}}
+                    </td>
+                    <td><code>{{this.port}}</code></td>
+                    <td>{{this.memory_mb}} MB</td>
+                    <td><a href="http://{{this.addr}}" target="_blank" class="button button-outline">Open</a></td>
+                </tr>
+                {{/each}}
+                {{#unless local_apps}}
+                <tr>
+                    <td colspan="4">No active development apps found in configured range.</td>
+                </tr>
+                {{/unless}}
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h3>⚙️ Infrastructure & Services</h3>
+        <table class="services-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Port</th>
+                    <th>PID</th>
+                    <th>Memory</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each services}}
+                <tr class="service-row">
+                    <td>
+                        {{this.name}}
+                        {{#if this.title}}
+                        <div class="page-title">{{this.title}}</div>
+                        {{/if}}
+                    </td>
+                    <td><code>{{this.port}}</code></td>
+                    <td>{{this.pid}}</td>
+                    <td>{{this.memory_mb}} MB</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </section>
 </body>
 <style>
     body {
         padding: 4em;
+        background-color: #f4f5f6;
+    }
+    section {
+        background: white;
+        padding: 2em;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 2em;
+    }
+    h3 {
+        margin-bottom: 1.5rem;
+        color: #606c76;
+    }
+    .button-outline {
+        padding: 0 1rem;
+        height: 2.8rem;
+        line-height: 2.8rem;
+    }
+    .services-table {
+        font-size: 0.9em;
+    }
+    .service-row {
+        color: #777;
+    }
+    code {
+        background: #f1f1f1;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+    }
+    .page-title {
+        font-size: 0.85rem;
+        color: #9b4dca;
+        font-style: italic;
+        margin-top: 0.2rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 300px;
     }
 </style>
 

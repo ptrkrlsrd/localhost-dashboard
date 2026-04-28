@@ -7,3 +7,8 @@ edition = "2021"
 handlebars = "3"
 serde = { version = "1.0", features = ["derive"] }
 rocket = "0.5.0-rc.1"
+listeners = "0.2"
+sysinfo = "0.30"
+reqwest = { version = "0.11", features = ["rustls-tls"] }
+scraper = "0.13"
+futures = "0.3"

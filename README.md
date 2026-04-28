@@ -7,4 +7,4 @@
 * Rocket.rs
 * Handlebars
 
-Note: Requires lsof, but I'll work towards removing this dependency later
+Note: This project uses native Rust libraries (`listeners` and `sysinfo`) for process discovery.
