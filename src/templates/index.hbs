@@ -3,11 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
+    <meta http-equiv="refresh" content="10">
     <title>Localhost Dashboard</title>
 </head>
 
@@ -22,7 +19,7 @@
                     <th>Name / Title</th>
                     <th>Port</th>
                     <th>Memory</th>
-                    <th>Link</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -36,7 +33,12 @@
                     </td>
                     <td><code>{{this.port}}</code></td>
                     <td>{{this.memory_mb}} MB</td>
-                    <td><a href="http://{{this.addr}}" target="_blank" class="button button-outline">Open</a></td>
+                    <td class="actions">
+                        <a href="http://{{this.addr}}" target="_blank" class="button">Open</a>
+                        <form method="post" action="/kill/{{this.pid}}">
+                            <button class="button kill">Kill</button>
+                        </form>
+                    </td>
                 </tr>
                 {{/each}}
                 {{#unless local_apps}}
@@ -57,6 +59,7 @@
                     <th>Port</th>
                     <th>PID</th>
                     <th>Memory</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -71,6 +74,11 @@
                     <td><code>{{this.port}}</code></td>
                     <td>{{this.pid}}</td>
                     <td>{{this.memory_mb}} MB</td>
+                    <td class="actions">
+                        <form method="post" action="/kill/{{this.pid}}">
+                            <button class="button kill">Kill</button>
+                        </form>
+                    </td>
                 </tr>
                 {{/each}}
             </tbody>
@@ -78,40 +86,108 @@
     </section>
 </body>
 <style>
+    :root {
+        --bg: #f4f5f6;
+        --card: #ffffff;
+        --text: #333333;
+        --muted: #777777;
+        --accent: #9b4dca;
+        --danger: #c0392b;
+        --border: #e1e1e1;
+        --code-bg: #f1f1f1;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg: #1a1c1e;
+            --card: #242628;
+            --text: #dddddd;
+            --muted: #999999;
+            --accent: #b57ee0;
+            --danger: #e06055;
+            --border: #3a3d40;
+            --code-bg: #333638;
+        }
+    }
+    * {
+        box-sizing: border-box;
+    }
     body {
+        margin: 0;
         padding: 4em;
-        background-color: #f4f5f6;
+        background-color: var(--bg);
+        color: var(--text);
+        font-family: system-ui, sans-serif;
+        line-height: 1.5;
+    }
+    h1 {
+        font-weight: 300;
     }
     section {
-        background: white;
+        background: var(--card);
         padding: 2em;
         border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         margin-bottom: 2em;
     }
     h3 {
+        margin-top: 0;
         margin-bottom: 1.5rem;
-        color: #606c76;
+        color: var(--muted);
+        font-weight: 300;
     }
-    .button-outline {
-        padding: 0 1rem;
-        height: 2.8rem;
-        line-height: 2.8rem;
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        text-align: left;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .button {
+        display: inline-block;
+        padding: 0.2rem 1rem;
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        background: none;
+        color: var(--accent);
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .button:hover {
+        background: var(--accent);
+        color: var(--card);
+    }
+    .button.kill {
+        border-color: var(--danger);
+        color: var(--danger);
+    }
+    .button.kill:hover {
+        background: var(--danger);
+        color: var(--card);
+    }
+    .actions {
+        white-space: nowrap;
+    }
+    .actions form {
+        display: inline;
     }
     .services-table {
         font-size: 0.9em;
     }
     .service-row {
-        color: #777;
+        color: var(--muted);
     }
     code {
-        background: #f1f1f1;
+        background: var(--code-bg);
         padding: 0.2rem 0.5rem;
         border-radius: 4px;
     }
     .page-title {
         font-size: 0.85rem;
-        color: #9b4dca;
+        color: var(--accent);
         font-style: italic;
         margin-top: 0.2rem;
         overflow: hidden;

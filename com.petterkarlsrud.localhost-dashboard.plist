@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.petterkarlsrud.localhost-dashboard</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/petterkarlsrud/.cargo/bin/localhost-dashboard</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/petterkarlsrud/Development/Rust/localhost-dashboard</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/localhost-dashboard.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/localhost-dashboard.err</string>
+</dict>
+</plist>

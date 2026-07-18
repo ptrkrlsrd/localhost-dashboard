@@ -3,14 +3,15 @@ extern crate rocket;
 
 use handlebars::Handlebars;
 use listeners::get_all;
-use rocket::response::content::Html;
-use rocket::tokio::sync::{Mutex, RwLock};
+use rocket::response::content::RawHtml;
+use rocket::response::Redirect;
+use rocket::serde::json::Json;
+use rocket::tokio::sync::RwLock;
 use rocket::State;
-use scraper::{Html as ScraperHtml, Selector};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use sysinfo::{Pid, System};
 
 #[derive(Deserialize, Clone)]
@@ -20,7 +21,7 @@ struct DashboardConfig {
     dev_port_max: u16,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize)]
 struct ProcessInfo {
     name: String,
     port: u16,
@@ -36,59 +37,7 @@ struct DashboardData {
     services: Vec<ProcessInfo>,
 }
 
-struct RefreshContext {
-    last_refresh: Option<Instant>,
-    title_by_addr: HashMap<String, String>,
-    title_attempted: HashSet<String>,
-}
-
-impl Default for RefreshContext {
-    fn default() -> Self {
-        Self {
-            last_refresh: None,
-            title_by_addr: HashMap::new(),
-            title_attempted: HashSet::new(),
-        }
-    }
-}
-
-#[derive(Clone)]
-struct AppState {
-    data: Arc<RwLock<DashboardData>>,
-    refresh_ctx: Arc<Mutex<RefreshContext>>,
-    client: reqwest::Client,
-    config: DashboardConfig,
-}
-
-const REFRESH_MIN_INTERVAL: Duration = Duration::from_secs(10);
-
-async fn refresh_if_due(state: &AppState) {
-    let mut guard = state.refresh_ctx.lock().await;
-    let now = Instant::now();
-    if let Some(t) = guard.last_refresh {
-        if now.duration_since(t) < REFRESH_MIN_INTERVAL {
-            return;
-        }
-    }
-    guard.last_refresh = Some(now);
-    let new_data = {
-        let RefreshContext {
-            ref mut title_by_addr,
-            ref mut title_attempted,
-            ..
-        } = &mut *guard;
-        refresh_dashboard_data(
-            &state.client,
-            &state.config,
-            title_by_addr,
-            title_attempted,
-        )
-        .await
-    };
-    drop(guard);
-    let mut data = state.data.write().await;
-    *data = new_data;
-}
+const REFRESH_INTERVAL: Duration = Duration::from_secs(10);
 
 const KNOWN_SERVICES: &[&str] = &["postgres", "redis-server", "docker", "mysqld", "node"];
 
@@ -110,14 +59,21 @@ async fn fetch_title(client: &reqwest::Client, addr: &str) -> Option<String> {
     }
 
     let body = resp.text().await.ok()?;
-    let document = ScraperHtml::parse_document(&body);
-    let selector = Selector::parse("title").ok()?;
+    extract_title(&body)
+}
 
-    document
-        .select(&selector)
-        .next()
-        .map(|e| e.text().collect::<String>().trim().to_string())
-        .filter(|t| !t.is_empty())
+// ponytail: string scan instead of an HTML parser; entities stay encoded and
+// titles containing markup aren't handled — swap in an HTML parser crate if that ever matters.
+fn extract_title(body: &str) -> Option<String> {
+    let lower = body.to_lowercase();
+    let tag = lower.find("<title")?;
+    let start = tag + lower[tag..].find('>')? + 1;
+    let end = start + lower[start..].find("</title>")?;
+    let title = body.get(start..end)?.trim();
+    if title.is_empty() {
+        return None;
+    }
+    Some(title.to_string())
 }
 
 async fn refresh_dashboard_data(
@@ -207,7 +163,7 @@ async fn refresh_dashboard_data(
         });
     }
 
-    let titles = futures::future::join_all(title_futures).await;
+    let titles = rocket::futures::future::join_all(title_futures).await;
     for (addr, title) in titles {
         title_attempted.insert(addr.clone());
         if let Some(t) = title {
@@ -221,9 +177,10 @@ async fn refresh_dashboard_data(
     for mut info in processes_to_fetch {
         info.title = title_by_addr.get(&info.addr).cloned();
 
-        if is_dev_port(info.port, config) && !is_service(&info.name, info.port) {
+        let service = is_service(&info.name, info.port);
+        if is_dev_port(info.port, config) && !service {
             local_apps.push(info);
-        } else if is_service(&info.name, info.port) || info.port < config.dev_port_min {
+        } else if service || info.port < config.dev_port_min {
             services.push(info);
         }
     }
@@ -237,12 +194,45 @@ async fn refresh_dashboard_data(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::extract_title;
+
+    #[test]
+    fn extracts_title() {
+        assert_eq!(
+            extract_title("<html><head><TITLE> My App </TITLE></head>"),
+            Some("My App".to_string())
+        );
+        assert_eq!(extract_title("<title lang=\"en\">x</title>"), Some("x".to_string()));
+        assert_eq!(extract_title("<title></title>"), None);
+        assert_eq!(extract_title("no title here"), None);
+    }
+}
+
 #[get("/")]
-async fn index(state: &State<AppState>, handlebars: &State<Handlebars<'_>>) -> Html<String> {
-    refresh_if_due(&*state).await;
-    let data = state.data.read().await;
+async fn index(
+    data: &State<Arc<RwLock<DashboardData>>>,
+    handlebars: &State<Handlebars<'_>>,
+) -> RawHtml<String> {
+    let data = data.read().await;
     let rendered_html = handlebars.render("dashboard", &*data).unwrap();
-    Html(rendered_html)
+    RawHtml(rendered_html)
+}
+
+#[get("/json")]
+async fn json(data: &State<Arc<RwLock<DashboardData>>>) -> Json<DashboardData> {
+    Json(data.read().await.clone())
+}
+
+// ponytail: kills any pid, no ownership check — localhost-only single-user tool.
+// The killed process stays listed until the next 10s refresh.
+#[post("/kill/<pid>")]
+async fn kill(pid: u32) -> Redirect {
+    let _ = std::process::Command::new("kill")
+        .arg(pid.to_string())
+        .status();
+    Redirect::to("/")
 }
 
 #[rocket::main]
@@ -266,25 +256,23 @@ async fn main() {
         .build()
         .expect("Failed to create reqwest client");
 
-    let state = AppState {
-        data: shared_data.clone(),
-        refresh_ctx: Arc::new(Mutex::new(RefreshContext::default())),
-        client,
-        config: config.clone(),
-    };
-
-    let worker_state = state.clone();
+    let worker_data = shared_data.clone();
     rocket::tokio::spawn(async move {
+        let mut title_by_addr = HashMap::new();
+        let mut title_attempted = HashSet::new();
         loop {
-            refresh_if_due(&worker_state).await;
-            rocket::tokio::time::sleep(REFRESH_MIN_INTERVAL).await;
+            let new_data =
+                refresh_dashboard_data(&client, &config, &mut title_by_addr, &mut title_attempted)
+                    .await;
+            *worker_data.write().await = new_data;
+            rocket::tokio::time::sleep(REFRESH_INTERVAL).await;
         }
     });
 
     let _result = rocket
-        .mount("/", routes![index])
+        .mount("/", routes![index, json, kill])
         .manage(handlebars)
-        .manage(state)
+        .manage(shared_data)
         .launch()
         .await;
 }
